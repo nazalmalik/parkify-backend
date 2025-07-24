@@ -115,7 +115,7 @@ export async function createJazzCashPayment(req, res) {
       pp_MerchantID: process.env.JAZZCASH_MERCHANT_ID,
       pp_Password: process.env.JAZZCASH_PASSWORD,
       pp_TxnRefNo: generateTxnRef(),
-      pp_Amount: `${booking.totalPrice}00`, // In paisa
+      pp_Amount: `${booking.totalPrice}00`,
       pp_TxnCurrency: 'PKR',
       pp_TxnDateTime: txnDateTime,
       pp_BillReference: booking.bookingId,
@@ -124,18 +124,21 @@ export async function createJazzCashPayment(req, res) {
       pp_ReturnURL: `${process.env.CLIENT_URL}/payment-success?bookingId=${booking.bookingId}`,
     };
 
+    console.log("JazzCash Request Data:", data); // 👈 Add this
+
     JC.pay(data, response => {
       if (response.pp_ResponseCode === '000') {
         res.status(200).json({ success: true, url: response.pp_PaymentURL });
       } else {
+        console.error("JazzCash Error Response:", response); // 👈 Add this
         res.status(500).json({ success: false, message: 'JazzCash error', response });
       }
     });
   } catch (error) {
+    console.error("JazzCash Exception:", error); // 👈 Add this
     res.status(500).json({ message: 'JazzCash payment error', error });
   }
 }
-
 
 
 
