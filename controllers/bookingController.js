@@ -8,6 +8,7 @@ import mongoose from 'mongoose'; // ✅ Add this to use ObjectId
 // 1. Create a booking
 export async function createBooking(req, res) {
   try {
+    console.log("Incoming booking request:", req.body); // 🪵 log this
     const {
       userId,
       spotId,
