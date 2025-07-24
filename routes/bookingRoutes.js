@@ -20,7 +20,10 @@ const router = Router();
 // Routes
 router.get('/my-bookings', authenticateUser, getMyBookings); // get current user's bookings
 router.post('/book', createBooking); // create a new booking
-router.post('/jazzcash', createJazzCashPayment); // new route for JazzCash
+router.post('/jazzcash', (req, res, next) => {
+  console.log('JazzCash payment route hit');
+  next();
+}, createJazzCashPayment);
 router.post('/paid', markBookingAsPaid); // mark booking as paid
 router.get('/:bookingId', getBookingById); // get booking by ID
 router.post('/:bookingId/scan', markQRScanned); // QR scan
