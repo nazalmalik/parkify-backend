@@ -5,7 +5,7 @@ Jazzcash.credentials({
   config: {
     merchantId: process.env.JAZZCASH_MERCHANT_ID,
     password: process.env.JAZZCASH_PASSWORD,
-    hashKey: process.env.JAZZCASH_HASH_KEY,
+    integritySalt: process.env.INTEGRITY_SALT,
   },
   environment: 'sandbox', // Change to 'live' in production
 });
