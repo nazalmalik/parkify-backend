@@ -1,11 +1,9 @@
-//controllers/bookingController.js
 import Booking from '../models/Booking.js';
 import Spot from '../models/Spot.js';
 import { generateQRCode } from '../utils/qrCodeGenerator.js';
 import { v4 as uuidv4 } from 'uuid';
 import JC from '../utils/jazzcash.js';
-
-// const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+import mongoose from 'mongoose'; // ✅ Add this to use ObjectId
 
 // 1. Create a booking
 export async function createBooking(req, res) {
@@ -20,8 +18,18 @@ export async function createBooking(req, res) {
       endTime,
     } = req.body;
 
+    // ✅ Validate presence of required fields
     if (!userId || !spotId || !vehicleType || !licensePlate || !bookingDate || !startTime || !endTime) {
       return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // ✅ Convert userId to ObjectId
+    const userObjectId = mongoose.Types.ObjectId.isValid(userId)
+      ? new mongoose.Types.ObjectId(userId)
+      : null;
+
+    if (!userObjectId) {
+      return res.status(400).json({ message: 'Invalid userId format' });
     }
 
     const startDateTime = new Date(`${bookingDate}T${startTime}:00`);
@@ -40,15 +48,17 @@ export async function createBooking(req, res) {
     const durationInHours = Math.ceil((endDateTime - startDateTime) / (1000 * 60 * 60));
     const totalPrice = durationInHours * spot.pricePerHour;
 
+    // ✅ Update spot reservation
     spot.isReserved = true;
     spot.isAvailable = false;
     spot.reservedUntil = endDateTime;
     await spot.save();
 
     const bookingId = uuidv4();
+
     const newBooking = new Booking({
       bookingId,
-      userId,
+      userId: userObjectId, // ✅ use the converted ObjectId
       spotId,
       vehicleType,
       licensePlate,
@@ -67,10 +77,10 @@ export async function createBooking(req, res) {
       totalPrice,
     });
   } catch (error) {
+    console.error("Create Booking Error:", error); // ✅ helpful log
     res.status(500).json({ message: 'Error creating booking', error });
   }
 }
-
 
 
 // Helper to format datetime for JazzCash
