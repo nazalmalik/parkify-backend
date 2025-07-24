@@ -108,18 +108,18 @@ export async function createJazzCashPayment(req, res) {
 
     const data = {
       pp_Version: '1.1',
-      pp_TxnType: '',
+      pp_TxnType: 'MWALLET',
       pp_Language: 'EN',
       pp_MerchantID: process.env.JAZZCASH_MERCHANT_ID,
       pp_Password: process.env.JAZZCASH_PASSWORD,
       pp_TxnRefNo: generateTxnRef(),
-      pp_Amount: `${booking.totalPrice}00`,
+      pp_Amount: `${Math.round(booking.totalPrice * 100)}`,
       pp_TxnCurrency: 'PKR',
       pp_TxnDateTime: txnDateTime,
       pp_BillReference: booking.bookingId,
       pp_Description: `Parking spot: ${booking.spotId}`,
       pp_TxnExpiryDateTime: expiryDateTime,
-      pp_ReturnURL: `${process.env.CLIENT_URL}/payment-success?bookingId=${booking.bookingId}`,
+      pp_ReturnURL: `${process.env.JAZZCASH_RETURN_URL}?bookingId=${booking.bookingId}`,
     };
 
     console.log("JazzCash Request Data:", data);
