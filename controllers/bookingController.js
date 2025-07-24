@@ -99,11 +99,9 @@ function generateTxnRef() {
 export async function createJazzCashPayment(req, res) {
   try {
     const { bookingId } = req.body;
-    const booking = await Booking.findOne({ bookingId });
 
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
-    }
+    const booking = await Booking.findOne({ bookingId });
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
 
     const txnDateTime = formatDateTime();
     const expiryDateTime = formatDateTime(new Date(Date.now() + 60 * 60 * 1000));
@@ -124,19 +122,40 @@ export async function createJazzCashPayment(req, res) {
       pp_ReturnURL: `${process.env.CLIENT_URL}/payment-success?bookingId=${booking.bookingId}`,
     };
 
-    console.log("JazzCash Request Data:", data); // 👈 Add this
+    console.log("JazzCash Request Data:", data);
 
-    JC.pay(data, response => {
-      if (response.pp_ResponseCode === '000') {
-        res.status(200).json({ success: true, url: response.pp_PaymentURL });
-      } else {
-        console.error("JazzCash Error Response:", response); // 👈 Add this
-        res.status(500).json({ success: false, message: 'JazzCash error', response });
-      }
-    });
+    const response = await JC.pay(data);
+
+    if (!response || response.error) {
+      console.error("JazzCash Error:", response);
+      return res.status(500).json({
+        success: false,
+        message: 'JazzCash payment failed',
+        error: response.details || 'Unknown error',
+      });
+    }
+
+    if (response.pp_ResponseCode === '000') {
+      return res.status(200).json({
+        success: true,
+        url: response.pp_PaymentURL,
+      });
+    } else {
+      console.error("JazzCash API rejected the request:", response);
+      return res.status(500).json({
+        success: false,
+        message: 'JazzCash rejected the request',
+        response,
+      });
+    }
+
   } catch (error) {
-    console.error("JazzCash Exception:", error); // 👈 Add this
-    res.status(500).json({ message: 'JazzCash payment error', error });
+    console.error("JazzCash Exception:", error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message,
+    });
   }
 }
 
