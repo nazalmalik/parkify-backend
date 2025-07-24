@@ -3,9 +3,9 @@ import Booking from '../models/Booking.js';
 import Spot from '../models/Spot.js';
 import { generateQRCode } from '../utils/qrCodeGenerator.js';
 import { v4 as uuidv4 } from 'uuid';
-import Stripe from 'stripe';
+import JC from '../utils/jazzcash.js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+// const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // 1. Create a booking
 export async function createBooking(req, res) {
@@ -71,40 +71,62 @@ export async function createBooking(req, res) {
   }
 }
 
-// 2. Create Stripe Checkout Session
-export async function createStripeCheckoutSession(req, res) {
+
+
+// Helper to format datetime for JazzCash
+function formatDateTime(date = new Date()) {
+  const pad = n => n.toString().padStart(2, '0');
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+}
+
+// Helper to generate reference
+function generateTxnRef() {
+  return 'T' + Date.now();
+}
+
+//2. JazzCash Checkout
+export async function createJazzCashPayment(req, res) {
   try {
     const { bookingId } = req.body;
-
     const booking = await Booking.findOne({ bookingId });
+
     if (!booking) {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      mode: 'payment',
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: `Parking Spot - ${booking.spotId}`,
-            },
-            unit_amount: Math.round(booking.totalPrice * 100),
-          },
-          quantity: 1,
-        },
-      ],
-      success_url: `${process.env.CLIENT_URL}/payment-success?bookingId=${booking.bookingId}`,
-      cancel_url: `${process.env.CLIENT_URL}/payment-cancel`,
-    });
+    const txnDateTime = formatDateTime();
+    const expiryDateTime = formatDateTime(new Date(Date.now() + 60 * 60 * 1000));
 
-    res.status(200).json({ sessionUrl: session.url });
+    const data = {
+      pp_Version: '1.1',
+      pp_TxnType: '',
+      pp_Language: 'EN',
+      pp_MerchantID: process.env.JAZZCASH_MERCHANT_ID,
+      pp_Password: process.env.JAZZCASH_PASSWORD,
+      pp_TxnRefNo: generateTxnRef(),
+      pp_Amount: `${booking.totalPrice}00`, // In paisa
+      pp_TxnCurrency: 'PKR',
+      pp_TxnDateTime: txnDateTime,
+      pp_BillReference: booking.bookingId,
+      pp_Description: `Parking spot: ${booking.spotId}`,
+      pp_TxnExpiryDateTime: expiryDateTime,
+      pp_ReturnURL: `${process.env.CLIENT_URL}/payment-success?bookingId=${booking.bookingId}`,
+    };
+
+    JC.pay(data, response => {
+      if (response.pp_ResponseCode === '000') {
+        res.status(200).json({ success: true, url: response.pp_PaymentURL });
+      } else {
+        res.status(500).json({ success: false, message: 'JazzCash error', response });
+      }
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error creating Stripe session', error });
+    res.status(500).json({ message: 'JazzCash payment error', error });
   }
 }
+
+
+
 
 // 3. Mark Booking as Paid
 export async function markBookingAsPaid(req, res) {
