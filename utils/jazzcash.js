@@ -18,6 +18,9 @@ const JC = {
     }).catch(err => {
       console.error("JazzCash PAY error:", err);
       callback({ error: true, message: 'Payment request failed', details: err });
+      if (!process.env.JAZZCASH_MERCHANT_ID || !process.env.JAZZCASH_PASSWORD || !process.env.INTEGRITY_SALT) {
+        console.error("❌ JazzCash ENV variables missing");
+      }
     });
   },
 };
