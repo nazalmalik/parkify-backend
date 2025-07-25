@@ -1,3 +1,4 @@
 // api/index.js
-import handler from '../server.js';
-export default handler;
+app.get('/', (req, res) => {
+  res.send('🚗 Smart Parking Backend is running...');
+});
