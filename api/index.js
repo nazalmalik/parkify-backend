@@ -1,3 +1,10 @@
-export default function handler(req, res) {
-  res.status(200).json({ message: "Backend is working 🚀" });
-}
+import express from 'express';
+import { createServer } from 'http';
+
+const app = express();
+
+app.get('/', (req, res) => {
+  res.send('Express running on Vercel!');
+});
+
+export default app;
