@@ -1,3 +1,4 @@
+// server.js
 import 'dotenv/config';
 import express from 'express';
 import { connect } from 'mongoose';
@@ -12,44 +13,33 @@ import errorHandler from './middlewares/errorHandler.js';
 
 const app = express();
 
-// ✅ CORS - Allow only your frontend origin
 app.use(cors({
   origin: 'https://parkify-frontend-rouge.vercel.app',
   credentials: true,
 }));
 
-// ✅ Other middlewares
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// ✅ Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/navigation', navigationRoutes);
 app.use('/api/spots', spotRoutes);
 
-// Root Endpoint
+app.use(errorHandler);
+
 app.get('/', (req, res) => {
   res.send('🚗 Smart Parking Backend is running...');
 });
 
-// ✅ Error Handler
-app.use(errorHandler);
+const handler = async (req, res) => {
+  if (!global.mongoose) {
+    global.mongoose = await connect(process.env.MONGO_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+  }
+  app(req, res); // forward request to Express
+};
 
-// ✅ MongoDB Connection
-connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-}).then(() => {
-  console.log('Connected to MongoDB');
-}).catch(err => {
-  console.error('Error connecting to MongoDB:', err);
-});
-
-// ✅ Start Server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
-
-export default app;
+export default handler;
