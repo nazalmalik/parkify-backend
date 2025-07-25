@@ -1,10 +1,4 @@
-import express from 'express';
-import { createServer } from 'http';
+// api/index.js
+import handler from '../server.js';
 
-const app = express();
-
-app.get('/', (req, res) => {
-  res.send('Express running on Vercel!');
-});
-
-export default app;
+export default handler;
