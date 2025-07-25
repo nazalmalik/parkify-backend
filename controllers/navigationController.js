@@ -1,18 +1,14 @@
-// controllers/navigationController.js
-
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import pathfinding from '../utils/pathfinding.js';
-import Booking from '../models/Booking.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const mapData = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/mapGraph.json'), 'utf8'));
-const { nodes, edges } = mapData; // ✅ required for pathfinding
+const { nodes, edges } = mapData; // ✅ both nodes and edges needed
 
-// 🧭 1. Existing: Pathfinding API
 const getNavigationPath = (req, res) => {
   const { start, end } = req.query;
 
@@ -42,28 +38,6 @@ const getNavigationPath = (req, res) => {
   }
 };
 
-// 🚗 2. NEW: Return vehicleType and spotId from booking
-const getNavigationData = async (req, res) => {
-  try {
-    const { bookingId } = req.params;
-
-    const booking = await Booking.findOne({ bookingId });
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
-    }
-
-    res.status(200).json({
-      vehicleType: booking.vehicleType,
-      spotId: booking.spotId,
-    });
-  } catch (error) {
-    console.error('Error in getNavigationData:', error);
-    res.status(500).json({ message: 'Error fetching navigation data', error });
-  }
-};
-
-// Export both functions
 export default {
   getNavigationPath,
-  getNavigationData,
 };
