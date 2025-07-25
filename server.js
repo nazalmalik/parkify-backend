@@ -1,4 +1,3 @@
-// server.js
 import 'dotenv/config';
 import express from 'express';
 import { connect } from 'mongoose';
@@ -27,9 +26,14 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/navigation', navigationRoutes);
 app.use('/api/spots', spotRoutes);
 
+// Root route for health check
+app.get('/', (req, res) => {
+  res.send('🚗 Smart Parking Backend is running...');
+});
+
 app.use(errorHandler);
 
-// MongoDB Connect — cache connection across invocations
+// ✅ MongoDB connection
 let isConnected = false;
 async function connectToMongo() {
   if (!isConnected) {
@@ -42,8 +46,7 @@ async function connectToMongo() {
   }
 }
 
-// ✅ Export a function instead of starting a server
-export default async function handler(req, res) {
-  await connectToMongo();
-  return app(req, res); // let Express handle the request
-}
+await connectToMongo();
+
+// ✅ Export the Express app (no app.listen)
+export default app;
