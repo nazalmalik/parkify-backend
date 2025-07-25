@@ -42,7 +42,6 @@ async function connectToMongo() {
   }
 }
 
-// ✅ Export a function instead of starting a server
 export default async function handler(req, res) {
   await connectToMongo();
   return app(req, res); // let Express handle the request
