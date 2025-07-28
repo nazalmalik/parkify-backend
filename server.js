@@ -19,7 +19,7 @@ const app = express();
 
 // ✅ Middlewares
 app.use(cors({
-  origin: 'http://localhost:5173', // React frontend origin
+  origin: 'https://parkify-frontend-rouge.vercel.app/', // React frontend origin
   credentials: true
 }));
 app.use(express.json());

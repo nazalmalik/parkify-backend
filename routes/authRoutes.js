@@ -46,7 +46,7 @@ router.get(
       role: user.role,
     };
 
-    const redirectURL = `http://localhost:5173/google-success?user=${encodeURIComponent(
+    const redirectURL = `https://parkify-frontend-rouge.vercel.app/google-success?user=${encodeURIComponent(
   JSON.stringify(userData)
 )}&token=${token}`;
 
