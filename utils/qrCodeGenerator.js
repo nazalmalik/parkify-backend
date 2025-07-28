@@ -15,3 +15,4 @@ export async function generateQRCode(data) {
     throw error;
   }
 }
+ 

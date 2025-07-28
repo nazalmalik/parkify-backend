@@ -11,7 +11,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 export async function createBooking(req, res) {
   try {
     const {
-      userId,
+      userId: bodyUserId,
       spotId,
       vehicleType,
       licensePlate,
@@ -20,41 +20,63 @@ export async function createBooking(req, res) {
       endTime,
     } = req.body;
 
-    if (!userId || !spotId || !vehicleType || !licensePlate || !bookingDate || !startTime || !endTime) {
+    const userId = req.user?.id || bodyUserId;
+
+    const isGoogleUser = !!req.user;
+
+    // Allow Google-auth users with missing fields to continue
+    if (!userId || (!isGoogleUser && (!spotId || !vehicleType || !licensePlate || !bookingDate || !startTime || !endTime))) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    const startDateTime = new Date(`${bookingDate}T${startTime}:00`);
-    const endDateTime = new Date(`${bookingDate}T${endTime}:00`);
+    // Assign default values for Google users
+    const finalSpotId = spotId || "google-default-spot";
+    const finalVehicleType = vehicleType || "car";
+    const finalLicensePlate = licensePlate || "G-LOGIN";
+    const finalBookingDate = bookingDate || new Date().toISOString().split("T")[0];
+    const finalStartTime = startTime || "10:00";
+    const finalEndTime = endTime || "11:00";
+
+    const startDateTime = new Date(`${finalBookingDate}T${finalStartTime}:00`);
+    const endDateTime = new Date(`${finalBookingDate}T${finalEndTime}:00`);
 
     if (endDateTime <= startDateTime) {
       return res.status(400).json({ message: 'End time must be after start time' });
     }
 
-    const spot = await Spot.findOne({ spotId });
+    let spot = await Spot.findOne({ spotId: finalSpotId });
 
-    if (!spot || !spot.isAvailable || (spot.isReserved && spot.reservedUntil > startDateTime)) {
+    // If spot doesn't exist and it's not a Google fallback, return error
+    if (!spot && !isGoogleUser) {
+      return res.status(400).json({ message: 'Spot is not available for booking' });
+    }
+
+    // For normal users: check if spot is reserved
+    if (spot && !spot.isAvailable || (spot.isReserved && spot.reservedUntil > startDateTime)) {
       return res.status(400).json({ message: 'Spot is not available for booking' });
     }
 
     const durationInHours = Math.ceil((endDateTime - startDateTime) / (1000 * 60 * 60));
-    const totalPrice = durationInHours * spot.pricePerHour;
+    const totalPrice = spot ? durationInHours * spot.pricePerHour : 50; // Default price for fallback spot
 
-    spot.isReserved = true;
-    spot.isAvailable = false;
-    spot.reservedUntil = endDateTime;
-    await spot.save();
+    // If spot exists, mark it as reserved
+    if (spot) {
+      spot.isReserved = true;
+      spot.isAvailable = false;
+      spot.reservedUntil = endDateTime;
+      await spot.save();
+    }
 
     const bookingId = uuidv4();
     const newBooking = new Booking({
       bookingId,
       userId,
-      spotId,
-      vehicleType,
-      licensePlate,
-      bookingDate: new Date(bookingDate),
-      startTime,
-      endTime,
+      spotId: finalSpotId,
+      vehicleType: finalVehicleType,
+      licensePlate: finalLicensePlate,
+      bookingDate: new Date(finalBookingDate),
+      startTime: finalStartTime,
+      endTime: finalEndTime,
       totalPrice,
       isPaid: false,
     });
@@ -67,9 +89,11 @@ export async function createBooking(req, res) {
       totalPrice,
     });
   } catch (error) {
+    console.error("Booking Error:", error);
     res.status(500).json({ message: 'Error creating booking', error });
   }
 }
+
 
 // 2. Create Stripe Checkout Session
 export async function createStripeCheckoutSession(req, res) {
@@ -81,6 +105,10 @@ export async function createStripeCheckoutSession(req, res) {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
+    // Convert PKR to minimum USD cents (assuming 1 USD =  294.8296 PKR)
+    const conversionRate =   294.8279 ;
+    const convertedAmount = Math.max(50, Math.round((booking.totalPrice / conversionRate) * 100)); // cents
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
@@ -89,9 +117,10 @@ export async function createStripeCheckoutSession(req, res) {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: `Parking Spot - ${booking.spotId}`,
+               name: `Parking Spot - ${booking.spotId}`,
+            description: `Converted from Rs. ${booking.totalPrice} (PKR)`, // ✅ Add this line
             },
-            unit_amount: Math.round(booking.totalPrice * 100),
+            unit_amount: convertedAmount,
           },
           quantity: 1,
         },
@@ -102,9 +131,11 @@ export async function createStripeCheckoutSession(req, res) {
 
     res.status(200).json({ sessionUrl: session.url });
   } catch (error) {
-    res.status(500).json({ message: 'Error creating Stripe session', error });
+    console.error('Stripe session error:', error.message);
+    res.status(500).json({ message: 'Error creating Stripe session', error: error.message });
   }
 }
+
 
 // 3. Mark Booking as Paid
 export async function markBookingAsPaid(req, res) {

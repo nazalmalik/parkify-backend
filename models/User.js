@@ -10,13 +10,15 @@ const userSchema = new Schema(
     },
     phoneNumber: {
       type: String,
-      required: true,
       trim: true,
+      default: "Not Provided",
+      required: false,
     },
     vehicleNumber: {
       type: String,
-      required: true,
       trim: true,
+      default: "Not Provided",
+      required: false,
     },
     email: {
       type: String,
@@ -27,8 +29,13 @@ const userSchema = new Schema(
     },
     password: {
       type: String,
-      required: true,
       minlength: 6,
+      required: false, // ✅ optional for Google users
+    },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
     },
     role: {
       type: String,
@@ -39,16 +46,17 @@ const userSchema = new Schema(
   { timestamps: true }
 );
 
-// Hash password before saving
+// Hash password only if provided
 userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
+  if (!this.isModified("password") || !this.password) return next();
   const salt = await genSalt(10);
   this.password = await hash(this.password, salt);
   next();
 });
 
-// Compare hashed passwords
+// Compare hashed passwords safely
 userSchema.methods.comparePassword = async function (password) {
+  if (!this.password) return false;
   return compare(password, this.password);
 };
 
