@@ -110,7 +110,7 @@ const forgotPassword = async (req, res) => {
       expiresIn: "15m",
     });
 
-    const resetLink = `http://localhost:5173/reset-password/${token}`;
+    const resetLink = `https://parkify-frontend-rouge.vercel.app/reset-password/${token}`;
 
     const transporter = nodemailer.createTransport({
       service: "gmail",
